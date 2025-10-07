@@ -3,7 +3,7 @@ name: 🧠 Monthly Model Retraining
 on:
   schedule:
     - cron: "0 0 1 * *"  # Runs at 00:00 UTC on the 1st of every month
-  workflow_dispatch:       # Allow manual trigger for testing
+  workflow_dispatch:       # Allow manual trigger
 
 jobs:
   retrain:
@@ -26,13 +26,6 @@ jobs:
     - name: 🚀 Run training with MLflow logging
       run: |
         python train.py
-
-    - name: 📈 Save training metrics
-      run: |
-        echo "date,accuracy,f1_score" > metrics.csv
-        # Extract metrics from MLflow logs (or capture from stdout in future)
-        echo "$(date +'%Y-%m-%d'),N/A,N/A" >> metrics.csv
-        git add metrics.csv
 
     - name: 💾 Commit and push new model artifacts
       run: |
