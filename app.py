@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import joblib
+import plotly.express as px
+import os
 
 # Load model and preprocessing artifacts
 model = joblib.load("model/churn_model.pkl")
@@ -13,7 +15,7 @@ st.set_page_config(page_title="Customer Churn Prediction", page_icon="📉", lay
 st.title("📊 Customer Churn Prediction App")
 st.write("This app predicts whether a customer is likely to churn based on their details.")
 
-# Define input fields
+# Sidebar inputs
 st.sidebar.header("Enter Customer Details")
 
 gender = st.sidebar.selectbox("Gender", ["Male", "Female"])
@@ -27,7 +29,7 @@ Contract = st.sidebar.selectbox("Contract Type", ["Month-to-month", "One year", 
 MonthlyCharges = st.sidebar.number_input("Monthly Charges", 0.0, 150.0, 70.0)
 TotalCharges = st.sidebar.number_input("Total Charges", 0.0, 10000.0, 500.0)
 
-# Convert categorical variables using encoder
+# Convert categorical variables
 input_dict = {
     'gender': gender,
     'SeniorCitizen': SeniorCitizen,
@@ -50,7 +52,7 @@ for col in input_df.select_dtypes('object').columns:
 # Scale numeric values
 scaled_input = scaler.transform(input_df)
 
-# Predict
+# Predict churn
 if st.button("🔮 Predict Churn"):
     pred = model.predict(scaled_input)[0]
     prob = model.predict_proba(scaled_input)[0][1]
@@ -59,3 +61,32 @@ if st.button("🔮 Predict Churn"):
         st.error(f"⚠️ This customer is likely to churn. (Probability: {prob:.2%})")
     else:
         st.success(f"✅ This customer is likely to stay. (Probability: {prob:.2%})")
+
+# ------------------------------
+# 📈 Model Performance Dashboard
+# ------------------------------
+st.subheader("📊 Model Performance Over Time")
+
+if os.path.exists("metrics.csv"):
+    metrics_df = pd.read_csv("metrics.csv")
+    metrics_df["date"] = pd.to_datetime(metrics_df["date"])
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("Latest Accuracy", f"{metrics_df['accuracy'].iloc[-1]:.3f}")
+    with col2:
+        st.metric("Latest F1-Score", f"{metrics_df['f1_score'].iloc[-1]:.3f}")
+
+    fig = px.line(
+        metrics_df,
+        x="date",
+        y=["accuracy", "f1_score"],
+        title="Model Accuracy and F1 Trends Over Time",
+        markers=True,
+        labels={"value": "Score", "date": "Retraining Date", "variable": "Metric"},
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.caption("This chart updates automatically after each retraining.")
+else:
+    st.warning("⚠️ No performance history found. Run a retraining cycle to generate metrics.")
