@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 import joblib
 import os
+import mlflow
+import mlflow.sklearn
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.ensemble import RandomForestClassifier
@@ -30,21 +32,38 @@ def train_model(data_path="data/WA_Fn-UseC_-Telco-Customer-Churn.csv"):
     X_train = scaler.fit_transform(X_train)
     X_test = scaler.transform(X_test)
 
-    model = RandomForestClassifier(n_estimators=100, random_state=42)
-    model.fit(X_train, y_train)
-    y_pred = model.predict(X_test)
+    n_estimators = 100
+    random_state = 42
+    model = RandomForestClassifier(n_estimators=n_estimators, random_state=random_state)
 
-    acc = accuracy_score(y_test, y_pred)
-    f1 = f1_score(y_test, y_pred)
+    print("🚀 Starting MLflow run...")
+    with mlflow.start_run():
+        model.fit(X_train, y_train)
+        y_pred = model.predict(X_test)
 
-    print(f"✅ Model trained. Accuracy={acc:.3f}, F1={f1:.3f}")
+        acc = accuracy_score(y_test, y_pred)
+        f1 = f1_score(y_test, y_pred)
 
-    os.makedirs("model", exist_ok=True)
-    joblib.dump(model, "model/churn_model.pkl")
-    joblib.dump(scaler, "model/scaler.pkl")
-    joblib.dump(encoder, "model/encoder.pkl")
+        print(f"✅ Model trained. Accuracy={acc:.3f}, F1={f1:.3f}")
 
-    print("💾 Model, scaler, and encoder saved successfully!")
+        # Log parameters and metrics
+        mlflow.log_param("n_estimators", n_estimators)
+        mlflow.log_param("random_state", random_state)
+        mlflow.log_metric("accuracy", acc)
+        mlflow.log_metric("f1_score", f1)
+
+        # Log model and artifacts
+        os.makedirs("model", exist_ok=True)
+        joblib.dump(model, "model/churn_model.pkl")
+        joblib.dump(scaler, "model/scaler.pkl")
+        joblib.dump(encoder, "model/encoder.pkl")
+
+        mlflow.sklearn.log_model(model, "model")
+        mlflow.log_artifact("model/churn_model.pkl")
+        mlflow.log_artifact("model/scaler.pkl")
+        mlflow.log_artifact("model/encoder.pkl")
+
+        print("📊 Metrics & artifacts logged to MLflow!")
 
 if __name__ == "__main__":
     train_model()
