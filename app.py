@@ -5,10 +5,16 @@ import joblib
 import plotly.express as px
 import os
 
-# Load model and preprocessing artifacts
-model = joblib.load("model/churn_model.pkl")
-scaler = joblib.load("model/scaler.pkl")
-encoder = joblib.load("model/encoder.pkl")
+# ------------------------------
+# Load model artifacts safely
+# ------------------------------
+try:
+    model = joblib.load("model/churn_model.pkl")
+    scaler = joblib.load("model/scaler.pkl")
+    encoder = joblib.load("model/encoder.pkl")
+except Exception as e:
+    st.error(f"❌ Model artifacts missing: {e}")
+    st.stop()
 
 st.set_page_config(page_title="Customer Churn Prediction", page_icon="📉", layout="centered")
 
@@ -67,9 +73,11 @@ if st.button("🔮 Predict Churn"):
 # ------------------------------
 st.subheader("📊 Model Performance Over Time")
 
-if os.path.exists("metrics.csv"):
-    metrics_df = pd.read_csv("metrics.csv")
-    metrics_df["date"] = pd.to_datetime(metrics_df["date"])
+metrics_path = "model/metrics_history.csv"
+
+if os.path.exists(metrics_path):
+    metrics_df = pd.read_csv(metrics_path)
+    metrics_df["timestamp"] = pd.to_datetime(metrics_df["timestamp"])
 
     col1, col2 = st.columns(2)
     with col1:
@@ -79,14 +87,13 @@ if os.path.exists("metrics.csv"):
 
     fig = px.line(
         metrics_df,
-        x="date",
+        x="timestamp",
         y=["accuracy", "f1_score"],
         title="Model Accuracy and F1 Trends Over Time",
         markers=True,
-        labels={"value": "Score", "date": "Retraining Date", "variable": "Metric"},
+        labels={"value": "Score", "timestamp": "Retraining Date", "variable": "Metric"},
     )
     st.plotly_chart(fig, use_container_width=True)
-
     st.caption("This chart updates automatically after each retraining.")
 else:
     st.warning("⚠️ No performance history found. Run a retraining cycle to generate metrics.")
