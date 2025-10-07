@@ -4,10 +4,12 @@ import joblib
 import os
 import mlflow
 import mlflow.sklearn
+from datetime import datetime
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, f1_score
+
 
 def train_model(data_path="data/WA_Fn-UseC_-Telco-Customer-Churn.csv"):
     print("📦 Loading data...")
@@ -46,13 +48,13 @@ def train_model(data_path="data/WA_Fn-UseC_-Telco-Customer-Churn.csv"):
 
         print(f"✅ Model trained. Accuracy={acc:.3f}, F1={f1:.3f}")
 
-        # Log parameters and metrics
+        # Log parameters and metrics to MLflow
         mlflow.log_param("n_estimators", n_estimators)
         mlflow.log_param("random_state", random_state)
         mlflow.log_metric("accuracy", acc)
         mlflow.log_metric("f1_score", f1)
 
-        # Log model and artifacts
+        # Save artifacts locally
         os.makedirs("model", exist_ok=True)
         joblib.dump(model, "model/churn_model.pkl")
         joblib.dump(scaler, "model/scaler.pkl")
@@ -64,6 +66,26 @@ def train_model(data_path="data/WA_Fn-UseC_-Telco-Customer-Churn.csv"):
         mlflow.log_artifact("model/encoder.pkl")
 
         print("📊 Metrics & artifacts logged to MLflow!")
+
+        # ✅ Append metrics to a CSV log
+        metrics_path = "model/metrics_history.csv"
+        new_record = pd.DataFrame([{
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "accuracy": acc,
+            "f1_score": f1,
+            "n_estimators": n_estimators,
+            "random_state": random_state
+        }])
+
+        if os.path.exists(metrics_path):
+            existing = pd.read_csv(metrics_path)
+            updated = pd.concat([existing, new_record], ignore_index=True)
+        else:
+            updated = new_record
+
+        updated.to_csv(metrics_path, index=False)
+        print(f"🧾 Metrics appended to {metrics_path}")
+
 
 if __name__ == "__main__":
     train_model()
